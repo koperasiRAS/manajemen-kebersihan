@@ -61,7 +61,7 @@ export function Modal({
               disabled={loading}
               className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
             >
-              Cancel
+              Batal
             </button>
             <button
               onClick={onConfirm}
@@ -72,7 +72,7 @@ export function Modal({
                   : 'bg-blue-600 hover:bg-blue-700'
               }`}
             >
-              {loading ? 'Processing...' : confirmText}
+              {loading ? 'Memproses...' : confirmText}
             </button>
           </div>
         )}

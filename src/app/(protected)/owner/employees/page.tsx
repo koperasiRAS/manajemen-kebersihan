@@ -23,6 +23,10 @@ export default function EmployeesPage() {
   const [formPassword, setFormPassword] = useState('');
   const [formPhone, setFormPhone] = useState('');
 
+  // Delete modal
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; emp: User | null }>({ open: false, emp: null });
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   // Edit modal
   const [editModal, setEditModal] = useState<{ open: boolean; emp: User | null }>({ open: false, emp: null });
   const [editName, setEditName] = useState('');
@@ -83,12 +87,18 @@ export default function EmployeesPage() {
     finally { setEditSaving(false); }
   };
 
-  const toggleActive = async (emp: User) => {
+  const handleDelete = async () => {
+    if (!deleteModal.emp) return;
+    setDeleteLoading(true);
     try {
-      await supabase.from('users').update({ is_active: !emp.is_active }).eq('id', emp.id);
-      addToast(`${emp.name} ${emp.is_active ? 'dinonaktifkan' : 'diaktifkan'}`, 'success');
+      const res = await fetch(`/api/users/${deleteModal.emp.id}`, { method: 'DELETE' });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error);
+      addToast(`${deleteModal.emp.name} berhasil dihapus`, 'success');
+      setDeleteModal({ open: false, emp: null });
       fetchEmployees();
-    } catch { addToast('Gagal memperbarui karyawan', 'error'); }
+    } catch (err) { addToast(err instanceof Error ? err.message : 'Gagal menghapus karyawan', 'error'); }
+    finally { setDeleteLoading(false); }
   };
 
   if (loading) return <div className="flex justify-center min-h-[60vh]"><LoadingSpinner size="lg" /></div>;
@@ -98,7 +108,7 @@ export default function EmployeesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manajemen Karyawan</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Tambah, kelola, dan nonaktifkan karyawan</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Tambah dan kelola data karyawan</p>
         </div>
         <button onClick={() => setShowAddModal(true)} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -113,7 +123,6 @@ export default function EmployeesPage() {
               <tr className="bg-gray-50 dark:bg-gray-800/50">
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Nama</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Telepon</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Aksi</th>
               </tr>
             </thead>
@@ -122,25 +131,18 @@ export default function EmployeesPage() {
                 <tr key={emp.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold', emp.is_active ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-500')}>
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
                         {emp.name.charAt(0).toUpperCase()}
                       </div>
-                      <span className={cn('text-sm font-medium', emp.is_active ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-600 line-through')}>{emp.name}</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">{emp.name}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{emp.phone_number || '—'}</td>
                   <td className="px-6 py-4">
-                    <span className={cn('px-2.5 py-1 text-xs font-medium rounded-full', emp.is_active ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-500')}>
-                      {emp.is_active ? 'Aktif' : 'Nonaktif'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <button onClick={() => setDetailModal({ open: true, emp })} className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline">Detail</button>
                       <button onClick={() => openEdit(emp)} className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline">Edit</button>
-                      <button onClick={() => toggleActive(emp)} className={cn('text-xs font-medium hover:underline', emp.is_active ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400')}>
-                        {emp.is_active ? 'Nonaktifkan' : 'Aktifkan'}
-                      </button>
+                      <button onClick={() => setDeleteModal({ open: true, emp })} className="text-xs font-medium text-red-600 dark:text-red-400 hover:underline">Hapus</button>
                     </div>
                   </td>
                 </tr>
@@ -221,6 +223,12 @@ export default function EmployeesPage() {
             </div>
           </div>
         )}
+      </Modal>
+      {/* Delete Employee Modal */}
+      <Modal isOpen={deleteModal.open} onClose={() => setDeleteModal({ open: false, emp: null })} title="Hapus Karyawan" onConfirm={handleDelete} confirmText="Ya, Hapus" confirmVariant="danger" loading={deleteLoading}>
+        <p className="text-sm text-gray-700 dark:text-gray-300">
+          Apakah Anda yakin ingin menghapus karyawan <strong>{deleteModal.emp?.name}</strong>? Semua data terkait akan ikut terhapus. Tindakan ini tidak bisa dibatalkan.
+        </p>
       </Modal>
 
       <ToastContainer toasts={toasts} onRemove={removeToast} />
