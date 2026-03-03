@@ -173,7 +173,7 @@ export default function DashboardPage() {
 
     setSubmittingAfter(true);
     try {
-      // Upload after photo
+      // Upload after photo to storage
       const ext = fileAfter.name.split('.').pop() || 'jpg';
       const fileName = `${user.id}/${Date.now()}_after.${ext}`;
       const { error: uploadErr } = await supabase.storage
@@ -181,31 +181,23 @@ export default function DashboardPage() {
         .upload(fileName, fileAfter, { cacheControl: '3600', upsert: false });
       if (uploadErr) throw uploadErr;
 
-      // Update draft → valid
-      const { data: updateData, error: updateErr } = await supabase
-        .from('cleaning_reports')
-        .update({
+      // Complete draft via server-side API (bypasses RLS)
+      const res = await fetch('/api/reports/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          report_id: draftReport.id,
           photo_url: fileName,
-          status: 'valid',
-          submitted_at: new Date().toISOString(),
-        })
-        .eq('id', draftReport.id)
-        .eq('user_id', user.id)
-        .select();
-      if (updateErr) throw updateErr;
-      if (!updateData || updateData.length === 0) throw new Error('Gagal mengupdate laporan. Coba refresh halaman.');
-
-      // Audit log
-      await supabase.from('audit_log').insert({
-        user_id: user.id,
-        action: 'report_submit',
-        target_type: 'report',
-        target_id: draftReport.id,
-        details: { location_id: draftReport.location_id, has_before: true },
+          user_id: user.id,
+        }),
       });
+
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Gagal menyelesaikan laporan');
 
       addToast('Laporan selesai! 🎉', 'success');
       setFileAfter(null);
+      setDraftReport(null);
       fetchDashboard();
     } catch (err) {
       addToast(err instanceof Error ? err.message : 'Gagal menyelesaikan', 'error');
