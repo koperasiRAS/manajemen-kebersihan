@@ -104,7 +104,7 @@ export default function HistoryPage() {
                 <div key={report.id} className="flex items-center gap-4 px-6 py-4">
                   {/* Photo thumbnail */}
                   <button
-                    onClick={() => viewPhoto(report.photo_url)}
+                    onClick={() => report.photo_url && viewPhoto(report.photo_url)}
                     className="w-14 h-14 rounded-lg bg-gray-100 dark:bg-gray-800 flex-shrink-0 overflow-hidden border border-gray-200 dark:border-gray-700 hover:ring-2 hover:ring-blue-500 transition-all cursor-pointer"
                   >
                     <div className="w-full h-full flex items-center justify-center text-gray-400">
