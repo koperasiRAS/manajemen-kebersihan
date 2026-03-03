@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/discipline-check",
       "schedule": "5 17 * * *"
+    },
+    {
+      "path": "/api/cron/monthly-cleanup",
+      "schedule": "10 17 1 * *"
     }
   ]
 }

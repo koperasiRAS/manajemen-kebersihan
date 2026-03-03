@@ -192,6 +192,7 @@ export default function OwnerReportsPage() {
             <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="">Semua</option>
               <option value="valid">Valid</option>
+              <option value="draft">Draft</option>
               <option value="rejected">Ditolak</option>
             </select>
           </div>
@@ -232,14 +233,18 @@ export default function OwnerReportsPage() {
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
                         {report.photo_before_url && (
-                          <button onClick={() => viewPhotos(report.photo_url, report.photo_before_url)} className="text-orange-600 dark:text-orange-400 hover:underline text-xs">Sebelum</button>
+                          <button onClick={() => viewPhotos(report.photo_url || '', report.photo_before_url)} className="text-orange-600 dark:text-orange-400 hover:underline text-xs">Sebelum</button>
                         )}
-                        <button onClick={() => viewPhotos(report.photo_url, report.photo_before_url)} className="text-blue-600 dark:text-blue-400 hover:underline text-xs">{report.photo_before_url ? 'Sesudah' : 'Lihat'}</button>
+                        {report.photo_url ? (
+                          <button onClick={() => viewPhotos(report.photo_url!, report.photo_before_url)} className="text-blue-600 dark:text-blue-400 hover:underline text-xs">{report.photo_before_url ? 'Sesudah' : 'Lihat'}</button>
+                        ) : (
+                          <span className="text-xs text-gray-400">Draft</span>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{report.location ? (report.location as Location).name : '—'}</td>
                     <td className="px-4 py-3">
-                      <span className={cn('px-2.5 py-1 text-xs font-medium rounded-full', report.status === 'valid' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300')}>{report.status}</span>
+                      <span className={cn('px-2.5 py-1 text-xs font-medium rounded-full', report.status === 'valid' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : report.status === 'draft' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300')}>{report.status === 'draft' ? 'Draft' : report.status}</span>
                     </td>
                     <td className="px-4 py-3">
                       {report.rating ? (

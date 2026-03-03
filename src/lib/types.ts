@@ -3,7 +3,7 @@
 // ============================================================
 
 export type UserRole = 'owner' | 'employee';
-export type ReportStatus = 'valid' | 'rejected';
+export type ReportStatus = 'draft' | 'valid' | 'rejected';
 export type DisciplineStatus = 'submitted' | 'missed';
 
 export interface User {
@@ -18,7 +18,7 @@ export interface User {
 export interface CleaningReport {
   id: string;
   user_id: string;
-  photo_url: string;
+  photo_url: string | null;
   photo_before_url: string | null;
   notes: string | null;
   submitted_at: string;
