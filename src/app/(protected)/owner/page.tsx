@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { getTodayDate, cn, formatDateTime } from '@/lib/utils';
+import { getTodayDate, getCurrentWeekRange, cn, formatDateTime } from '@/lib/utils';
 import { VIOLATION_THRESHOLD } from '@/lib/constants';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import type { User, EmployeeDisciplineSummary } from '@/lib/types';
@@ -12,11 +12,17 @@ export default function OwnerDashboardPage() {
   const [employees, setEmployees] = useState<User[]>([]);
   const [notSubmitted, setNotSubmitted] = useState<User[]>([]);
   const [disciplineSummaries, setDisciplineSummaries] = useState<EmployeeDisciplineSummary[]>([]);
+  const [weeklyCount, setWeeklyCount] = useState(0);
+  const [monthlyCount, setMonthlyCount] = useState(0);
+  const [avgRating, setAvgRating] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     try {
       const today = getTodayDate();
+      const { start: weekStart, end: weekEnd } = getCurrentWeekRange();
+      const now = new Date();
+      const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
       // Get all employees
       const { data: emps } = await supabase
@@ -32,10 +38,39 @@ export default function OwnerDashboardPage() {
       const { data: todayReports } = await supabase
         .from('cleaning_reports')
         .select('user_id')
-        .eq('submission_date', today);
+        .eq('submission_date', today)
+        .neq('status', 'draft');
 
       const submittedIds = new Set((todayReports || []).map((r) => r.user_id));
       setNotSubmitted(employeeList.filter((e) => !submittedIds.has(e.id)));
+
+      // Weekly report count
+      const { count: wc } = await supabase
+        .from('cleaning_reports')
+        .select('*', { count: 'exact', head: true })
+        .gte('submission_date', weekStart)
+        .lte('submission_date', weekEnd)
+        .neq('status', 'draft');
+      setWeeklyCount(wc || 0);
+
+      // Monthly report count
+      const { count: mc } = await supabase
+        .from('cleaning_reports')
+        .select('*', { count: 'exact', head: true })
+        .gte('submission_date', monthStart)
+        .neq('status', 'draft');
+      setMonthlyCount(mc || 0);
+
+      // Average rating
+      const { data: ratingData } = await supabase
+        .from('cleaning_reports')
+        .select('rating')
+        .not('rating', 'is', null)
+        .gte('submission_date', monthStart);
+      if (ratingData && ratingData.length > 0) {
+        const sum = ratingData.reduce((acc, r) => acc + (r.rating || 0), 0);
+        setAvgRating(Math.round((sum / ratingData.length) * 10) / 10);
+      }
 
       // Build discipline summaries
       const summaries: EmployeeDisciplineSummary[] = [];
@@ -107,27 +142,13 @@ export default function OwnerDashboardPage() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <SummaryCard
-          label="Total Karyawan"
-          value={employees.length}
-          color="blue"
-        />
-        <SummaryCard
-          label="Terkirim Hari Ini"
-          value={employees.length - notSubmitted.length}
-          color="green"
-        />
-        <SummaryCard
-          label="Belum Mengirim"
-          value={notSubmitted.length}
-          color={notSubmitted.length > 0 ? 'amber' : 'green'}
-        />
-        <SummaryCard
-          label="Pelanggaran"
-          value={violationCount}
-          color={violationCount > 0 ? 'red' : 'green'}
-        />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <SummaryCard label="Total Karyawan" value={employees.length} color="blue" />
+        <SummaryCard label="Terkirim Hari Ini" value={employees.length - notSubmitted.length} color="green" />
+        <SummaryCard label="Belum Mengirim" value={notSubmitted.length} color={notSubmitted.length > 0 ? 'amber' : 'green'} />
+        <SummaryCard label="Pelanggaran" value={violationCount} color={violationCount > 0 ? 'red' : 'green'} />
+        <SummaryCard label="Laporan Minggu Ini" value={weeklyCount} color="blue" />
+        <SummaryCard label="Bulan Ini" value={monthlyCount} suffix={avgRating > 0 ? ` · ★${avgRating}` : ''} color="blue" />
       </div>
 
       {/* Not submitted today */}
@@ -211,7 +232,7 @@ export default function OwnerDashboardPage() {
   );
 }
 
-function SummaryCard({ label, value, color }: { label: string; value: number; color: string }) {
+function SummaryCard({ label, value, color, suffix }: { label: string; value: number; color: string; suffix?: string }) {
   const colorClasses: Record<string, string> = {
     blue: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300',
     green: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300',
@@ -224,7 +245,7 @@ function SummaryCard({ label, value, color }: { label: string; value: number; co
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{label}</p>
       <div className="flex items-center gap-3">
         <span className={cn('text-2xl font-bold', colorClasses[color]?.split(' ').filter(c => c.startsWith('text-')).join(' ') || 'text-gray-900 dark:text-white')}>
-          {value}
+          {value}{suffix && <span className="text-sm font-normal ml-1">{suffix}</span>}
         </span>
       </div>
     </div>

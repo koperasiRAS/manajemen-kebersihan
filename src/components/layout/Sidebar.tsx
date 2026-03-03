@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
@@ -30,6 +31,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const [passwordModal, setPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
 
   const navItems = user?.role === 'owner' ? ownerNav : employeeNav;
 
@@ -93,6 +99,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Bottom actions */}
         <div className="border-t border-gray-200 dark:border-gray-800 p-4 space-y-2">
+          {/* Change Password */}
+          <button onClick={() => setPasswordModal(true)}
+            className="flex items-center gap-3 w-full px-3 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          >
+            <KeyIcon className="w-5 h-5" />
+            Ganti Password
+          </button>
           {/* Theme toggle */}
           <button onClick={toggleTheme}
             className="flex items-center gap-3 w-full px-3 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
@@ -108,6 +121,53 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             Keluar
           </button>
         </div>
+
+        {/* Password Change Modal */}
+        {passwordModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setPasswordModal(false)}>
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Ganti Password</h3>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (newPassword.length < 6) { setPasswordError('Password minimal 6 karakter'); return; }
+                if (newPassword !== confirmPassword) { setPasswordError('Password tidak cocok'); return; }
+                setPasswordLoading(true);
+                setPasswordError('');
+                try {
+                  const res = await fetch('/api/auth/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: user?.id, new_password: newPassword }),
+                  });
+                  const result = await res.json();
+                  if (!res.ok) throw new Error(result.error);
+                  setPasswordModal(false);
+                  setNewPassword('');
+                  setConfirmPassword('');
+                  alert('Password berhasil diubah!');
+                } catch (err) {
+                  setPasswordError(err instanceof Error ? err.message : 'Gagal mengubah password');
+                } finally { setPasswordLoading(false); }
+              }} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Password Baru</label>
+                  <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Min. 6 karakter" required />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Konfirmasi Password</label>
+                  <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ulangi password" required />
+                </div>
+                {passwordError && <p className="text-xs text-red-600 dark:text-red-400">{passwordError}</p>}
+                <div className="flex gap-2 pt-2">
+                  <button type="button" onClick={() => setPasswordModal(false)} className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">Batal</button>
+                  <button type="submit" disabled={passwordLoading} className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                    {passwordLoading ? 'Menyimpan...' : 'Simpan'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </aside>
     </>
   );
@@ -146,4 +206,7 @@ function SunIcon({ className }: { className?: string }) {
 }
 function MoonIcon({ className }: { className?: string }) {
   return (<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>);
+}
+function KeyIcon({ className }: { className?: string }) {
+  return (<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>);
 }

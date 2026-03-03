@@ -20,10 +20,15 @@ export default function OwnerReportsPage() {
   const [loading, setLoading] = useState(true);
 
   // Filters
+  const now = new Date();
+  const [filterMonth, setFilterMonth] = useState(now.getMonth() + 1);
+  const [filterYear, setFilterYear] = useState(now.getFullYear());
   const [filterDate, setFilterDate] = useState('');
   const [filterEmployee, setFilterEmployee] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterLocation, setFilterLocation] = useState('');
+
+  const MONTH_NAMES = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
   const [photoModal, setPhotoModal] = useState<{ open: boolean; beforeUrl: string; afterUrl: string }>({ open: false, beforeUrl: '', afterUrl: '' });
   const [rejectModal, setRejectModal] = useState<{ open: boolean; reportId: string; note: string }>({ open: false, reportId: '', note: '' });
@@ -52,7 +57,17 @@ export default function OwnerReportsPage() {
         .order('submitted_at', { ascending: false })
         .limit(200);
 
-      if (filterDate) query = query.eq('submission_date', filterDate);
+      // Date filter: use specific date if provided, otherwise filter by month/year
+      if (filterDate) {
+        query = query.eq('submission_date', filterDate);
+      } else {
+        const startDate = `${filterYear}-${String(filterMonth).padStart(2, '0')}-01`;
+        const endMonth = filterMonth === 12 ? 1 : filterMonth + 1;
+        const endYear = filterMonth === 12 ? filterYear + 1 : filterYear;
+        const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}-01`;
+        query = query.gte('submission_date', startDate).lt('submission_date', endDate);
+      }
+
       if (filterEmployee) query = query.eq('user_id', filterEmployee);
       if (filterStatus) query = query.eq('status', filterStatus);
       if (filterLocation) query = query.eq('location_id', filterLocation);
@@ -61,7 +76,7 @@ export default function OwnerReportsPage() {
       setReports((data || []) as CleaningReport[]);
     } catch { addToast('Failed to fetch reports', 'error'); }
     finally { setLoading(false); }
-  }, [supabase, filterDate, filterEmployee, filterStatus, filterLocation, addToast]);
+  }, [supabase, filterDate, filterMonth, filterYear, filterEmployee, filterStatus, filterLocation, addToast]);
 
   useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
   useEffect(() => { fetchReports(); }, [fetchReports]);
@@ -175,9 +190,25 @@ export default function OwnerReportsPage() {
 
       {/* Filters */}
       <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Tanggal</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Bulan</label>
+            <select value={filterMonth} onChange={(e) => { setFilterMonth(Number(e.target.value)); setFilterDate(''); }} className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+              {MONTH_NAMES.map((name, i) => (
+                <option key={i} value={i + 1}>{name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Tahun</label>
+            <select value={filterYear} onChange={(e) => { setFilterYear(Number(e.target.value)); setFilterDate(''); }} className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+              {[now.getFullYear(), now.getFullYear() - 1].map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Tanggal Spesifik</label>
             <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
@@ -204,9 +235,12 @@ export default function OwnerReportsPage() {
             </select>
           </div>
         </div>
-        {(filterDate || filterEmployee || filterStatus || filterLocation) && (
-          <button onClick={() => { setFilterDate(''); setFilterEmployee(''); setFilterStatus(''); setFilterLocation(''); }} className="mt-3 text-xs text-blue-600 dark:text-blue-400 hover:underline">Hapus semua filter</button>
-        )}
+        <div className="flex items-center justify-between mt-3">
+          {(filterDate || filterEmployee || filterStatus || filterLocation) && (
+            <button onClick={() => { setFilterDate(''); setFilterEmployee(''); setFilterStatus(''); setFilterLocation(''); }} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Hapus semua filter</button>
+          )}
+          <span className="text-xs text-gray-500 dark:text-gray-400 ml-auto">{reports.length} laporan ditemukan</span>
+        </div>
       </div>
 
       {/* Reports table */}
