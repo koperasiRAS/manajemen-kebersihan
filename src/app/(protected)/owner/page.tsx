@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { getTodayDate, cn } from '@/lib/utils';
+import { getTodayDate, cn, formatDateTime } from '@/lib/utils';
 import { VIOLATION_THRESHOLD } from '@/lib/constants';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import type { User, EmployeeDisciplineSummary } from '@/lib/types';
@@ -56,10 +56,10 @@ export default function OwnerDashboardPage() {
 
         const { data: lastSub } = await supabase
           .from('cleaning_reports')
-          .select('submission_date')
+          .select('submitted_at')
           .eq('user_id', emp.id)
           .eq('status', 'valid')
-          .order('submission_date', { ascending: false })
+          .order('submitted_at', { ascending: false })
           .limit(1)
           .single();
 
@@ -70,7 +70,7 @@ export default function OwnerDashboardPage() {
           user_name: emp.name,
           latest_consecutive_missed: consecutiveMissed,
           is_violation: consecutiveMissed >= VIOLATION_THRESHOLD,
-          last_submission_date: lastSub?.submission_date || null,
+          last_submission_date: lastSub?.submitted_at || null,
           total_missed: missedCount || 0,
         });
       }
@@ -188,7 +188,7 @@ export default function OwnerDashboardPage() {
                   <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">{s.user_name}</td>
                   <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{s.latest_consecutive_missed}</td>
                   <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{s.total_missed}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{s.last_submission_date || '—'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{s.last_submission_date ? formatDateTime(s.last_submission_date) : '—'}</td>
                   <td className="px-6 py-4">
                     <span className={cn(
                       'px-2.5 py-1 text-xs font-medium rounded-full',

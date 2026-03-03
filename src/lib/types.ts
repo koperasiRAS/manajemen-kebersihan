@@ -19,6 +19,7 @@ export interface CleaningReport {
   id: string;
   user_id: string;
   photo_url: string;
+  photo_before_url: string | null;
   notes: string | null;
   submitted_at: string;
   submission_date: string;

@@ -25,8 +25,7 @@ export default function OwnerReportsPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterLocation, setFilterLocation] = useState('');
 
-  // Modals
-  const [photoModal, setPhotoModal] = useState<{ open: boolean; url: string }>({ open: false, url: '' });
+  const [photoModal, setPhotoModal] = useState<{ open: boolean; beforeUrl: string; afterUrl: string }>({ open: false, beforeUrl: '', afterUrl: '' });
   const [rejectModal, setRejectModal] = useState<{ open: boolean; reportId: string; note: string }>({ open: false, reportId: '', note: '' });
   const [ratingModal, setRatingModal] = useState<{ open: boolean; reportId: string; rating: number; note: string }>({ open: false, reportId: '', rating: 0, note: '' });
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; reportId: string; employeeName: string }>({ open: false, reportId: '', employeeName: '' });
@@ -67,11 +66,17 @@ export default function OwnerReportsPage() {
   useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
   useEffect(() => { fetchReports(); }, [fetchReports]);
 
-  const viewPhoto = async (photoPath: string) => {
+  const viewPhotos = async (photoAfterPath: string, photoBeforePath: string | null) => {
     try {
-      const { data } = await supabase.storage.from(STORAGE_BUCKET).createSignedUrl(photoPath, SIGNED_URL_EXPIRY);
-      if (data?.signedUrl) setPhotoModal({ open: true, url: data.signedUrl });
-    } catch { addToast('Failed to load photo', 'error'); }
+      const paths = [photoAfterPath];
+      if (photoBeforePath) paths.push(photoBeforePath);
+      const results = await Promise.all(
+        paths.map(p => supabase.storage.from(STORAGE_BUCKET).createSignedUrl(p, SIGNED_URL_EXPIRY))
+      );
+      const afterUrl = results[0]?.data?.signedUrl || '';
+      const beforeUrl = results[1]?.data?.signedUrl || '';
+      setPhotoModal({ open: true, afterUrl, beforeUrl });
+    } catch { addToast('Gagal memuat foto', 'error'); }
   };
 
   const handleReject = async () => {
@@ -225,7 +230,12 @@ export default function OwnerReportsPage() {
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{(report.user as unknown as User)?.name || '—'}</td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{formatDateTime(report.submitted_at)}</td>
                     <td className="px-4 py-3">
-                      <button onClick={() => viewPhoto(report.photo_url)} className="text-blue-600 dark:text-blue-400 hover:underline text-sm">Lihat</button>
+                      <div className="flex gap-2">
+                        {report.photo_before_url && (
+                          <button onClick={() => viewPhotos(report.photo_url, report.photo_before_url)} className="text-orange-600 dark:text-orange-400 hover:underline text-xs">Sebelum</button>
+                        )}
+                        <button onClick={() => viewPhotos(report.photo_url, report.photo_before_url)} className="text-blue-600 dark:text-blue-400 hover:underline text-xs">{report.photo_before_url ? 'Sesudah' : 'Lihat'}</button>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{report.location ? (report.location as Location).name : '—'}</td>
                     <td className="px-4 py-3">
@@ -253,8 +263,19 @@ export default function OwnerReportsPage() {
       </div>
 
       {/* Photo Modal */}
-      <Modal isOpen={photoModal.open} onClose={() => setPhotoModal({ open: false, url: '' })} title="Foto">
-        <img src={photoModal.url} alt="Kebersihan" className="w-full rounded-lg" />
+      <Modal isOpen={photoModal.open} onClose={() => setPhotoModal({ open: false, beforeUrl: '', afterUrl: '' })} title="Foto Laporan">
+        <div className="space-y-4">
+          {photoModal.beforeUrl && (
+            <div>
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">📷 Sebelum</p>
+              <img src={photoModal.beforeUrl} alt="Sebelum" className="w-full rounded-lg border border-gray-200 dark:border-gray-700" />
+            </div>
+          )}
+          <div>
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">📷 Sesudah</p>
+            <img src={photoModal.afterUrl} alt="Sesudah" className="w-full rounded-lg border border-gray-200 dark:border-gray-700" />
+          </div>
+        </div>
       </Modal>
 
       {/* Reject Modal */}

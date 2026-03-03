@@ -23,12 +23,15 @@ export default function DashboardPage() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [todaySchedule, setTodaySchedule] = useState<CleaningSchedule | null>(null);
 
-  const [file, setFile] = useState<File | null>(null);
+  const [fileBefore, setFileBefore] = useState<File | null>(null);
+  const [fileAfter, setFileAfter] = useState<File | null>(null);
   const [notes, setNotes] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [compressing, setCompressing] = useState(false);
-  const [compressionInfo, setCompressionInfo] = useState<string | null>(null);
+  const [compressingBefore, setCompressingBefore] = useState(false);
+  const [compressingAfter, setCompressingAfter] = useState(false);
+  const [compressionInfoBefore, setCompressionInfoBefore] = useState<string | null>(null);
+  const [compressionInfoAfter, setCompressionInfoAfter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchDashboard = useCallback(async () => {
@@ -88,29 +91,33 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
-  const handleFileSelect = async (selectedFile: File | null) => {
-    if (!selectedFile) {
-      setFile(null);
-      setCompressionInfo(null);
-      return;
-    }
-
-    // Auto-compress the image
-    setCompressing(true);
+  const handleBeforeSelect = async (selectedFile: File | null) => {
+    if (!selectedFile) { setFileBefore(null); setCompressionInfoBefore(null); return; }
+    setCompressingBefore(true);
     try {
       const compressed = await compressImage(selectedFile);
       const stats = getCompressionStats(selectedFile, compressed);
-      setFile(compressed);
-      setCompressionInfo(`Dikompresi: ${stats.originalSize} → ${stats.compressedSize} (${stats.reduction} berkurang)`);
-    } catch {
-      setFile(selectedFile);
-      setCompressionInfo(null);
-    } finally { setCompressing(false); }
+      setFileBefore(compressed);
+      setCompressionInfoBefore(`Dikompresi: ${stats.originalSize} → ${stats.compressedSize} (${stats.reduction} berkurang)`);
+    } catch { setFileBefore(selectedFile); setCompressionInfoBefore(null); }
+    finally { setCompressingBefore(false); }
+  };
+
+  const handleAfterSelect = async (selectedFile: File | null) => {
+    if (!selectedFile) { setFileAfter(null); setCompressionInfoAfter(null); return; }
+    setCompressingAfter(true);
+    try {
+      const compressed = await compressImage(selectedFile);
+      const stats = getCompressionStats(selectedFile, compressed);
+      setFileAfter(compressed);
+      setCompressionInfoAfter(`Dikompresi: ${stats.originalSize} → ${stats.compressedSize} (${stats.reduction} berkurang)`);
+    } catch { setFileAfter(selectedFile); setCompressionInfoAfter(null); }
+    finally { setCompressingAfter(false); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !user) return;
+    if (!fileAfter || !user) return;
     if (todayCount >= MAX_DAILY_REPORTS) {
       addToast('Batas laporan harian sudah tercapai.', 'warning');
       return;
@@ -121,19 +128,30 @@ export default function DashboardPage() {
       // Get geolocation
       const geo = await getGeolocation();
 
-      // Upload photo
-      const ext = file.name.split('.').pop() || 'jpg';
-      const fileName = `${user.id}/${Date.now()}.${ext}`;
-      const { error: uploadErr } = await supabase.storage
+      // Upload after photo (required)
+      const extAfter = fileAfter.name.split('.').pop() || 'jpg';
+      const fileNameAfter = `${user.id}/${Date.now()}_after.${extAfter}`;
+      const { error: uploadAfterErr } = await supabase.storage
         .from(STORAGE_BUCKET)
-        .upload(fileName, file, { cacheControl: '3600', upsert: false });
+        .upload(fileNameAfter, fileAfter, { cacheControl: '3600', upsert: false });
+      if (uploadAfterErr) throw uploadAfterErr;
 
-      if (uploadErr) throw uploadErr;
+      // Upload before photo (optional)
+      let fileNameBefore: string | null = null;
+      if (fileBefore) {
+        const extBefore = fileBefore.name.split('.').pop() || 'jpg';
+        fileNameBefore = `${user.id}/${Date.now()}_before.${extBefore}`;
+        const { error: uploadBeforeErr } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .upload(fileNameBefore, fileBefore, { cacheControl: '3600', upsert: false });
+        if (uploadBeforeErr) throw uploadBeforeErr;
+      }
 
       // Insert report
       const { error: insertErr } = await supabase.from('cleaning_reports').insert({
         user_id: user.id,
-        photo_url: fileName,
+        photo_url: fileNameAfter,
+        photo_before_url: fileNameBefore,
         notes: notes.trim() || null,
         latitude: geo?.latitude || null,
         longitude: geo?.longitude || null,
@@ -151,10 +169,12 @@ export default function DashboardPage() {
       });
 
       addToast('Laporan berhasil dikirim!', 'success');
-      setFile(null);
+      setFileBefore(null);
+      setFileAfter(null);
       setNotes('');
       setSelectedLocation('');
-      setCompressionInfo(null);
+      setCompressionInfoBefore(null);
+      setCompressionInfoAfter(null);
       fetchDashboard();
     } catch (err) {
       addToast(err instanceof Error ? err.message : 'Gagal mengirim', 'error');
@@ -219,17 +239,20 @@ export default function DashboardPage() {
         <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 space-y-4">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">Kirim Laporan Kebersihan</h2>
 
-          <FileUpload onFileSelect={handleFileSelect} disabled={submitting || compressing} />
-
-          {compressing && (
-            <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-2">
-              <LoadingSpinner size="sm" /> Mengompresi gambar...
-            </p>
-          )}
-
-          {compressionInfo && (
-            <p className="text-xs text-green-600 dark:text-green-400">✓ {compressionInfo}</p>
-          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">📷 Foto Sebelum (opsional)</label>
+              <FileUpload onFileSelect={handleBeforeSelect} disabled={submitting || compressingBefore} />
+              {compressingBefore && <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-2 mt-1"><LoadingSpinner size="sm" /> Mengompresi...</p>}
+              {compressionInfoBefore && <p className="text-xs text-green-600 dark:text-green-400 mt-1">✓ {compressionInfoBefore}</p>}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">📷 Foto Sesudah (wajib) *</label>
+              <FileUpload onFileSelect={handleAfterSelect} disabled={submitting || compressingAfter} />
+              {compressingAfter && <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-2 mt-1"><LoadingSpinner size="sm" /> Mengompresi...</p>}
+              {compressionInfoAfter && <p className="text-xs text-green-600 dark:text-green-400 mt-1">✓ {compressionInfoAfter}</p>}
+            </div>
+          </div>
 
           {/* Location selector */}
           {locations.length > 0 && (
@@ -261,7 +284,7 @@ export default function DashboardPage() {
 
           <button
             type="submit"
-            disabled={!file || submitting || compressing}
+            disabled={!fileAfter || submitting || compressingBefore || compressingAfter}
             className="w-full py-3 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
           >
             {submitting ? <><LoadingSpinner size="sm" /> Mengirim...</> : 'Kirim Laporan'}
