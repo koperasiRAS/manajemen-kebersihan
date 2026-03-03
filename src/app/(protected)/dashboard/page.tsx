@@ -182,15 +182,18 @@ export default function DashboardPage() {
       if (uploadErr) throw uploadErr;
 
       // Update draft → valid
-      const { error: updateErr } = await supabase
+      const { data: updateData, error: updateErr } = await supabase
         .from('cleaning_reports')
         .update({
           photo_url: fileName,
           status: 'valid',
           submitted_at: new Date().toISOString(),
         })
-        .eq('id', draftReport.id);
+        .eq('id', draftReport.id)
+        .eq('user_id', user.id)
+        .select();
       if (updateErr) throw updateErr;
+      if (!updateData || updateData.length === 0) throw new Error('Gagal mengupdate laporan. Coba refresh halaman.');
 
       // Audit log
       await supabase.from('audit_log').insert({
