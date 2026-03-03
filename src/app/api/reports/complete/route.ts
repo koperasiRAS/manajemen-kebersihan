@@ -3,6 +3,16 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
+// Get today's date in WIB timezone as YYYY-MM-DD
+function getTodayWIB(): string {
+  const now = new Date();
+  const wib = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+  const y = wib.getFullYear();
+  const m = String(wib.getMonth() + 1).padStart(2, '0');
+  const d = String(wib.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 /**
  * POST /api/reports/complete
  * Completes a draft report by adding the after photo and changing status to 'valid'.
@@ -35,13 +45,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Draft laporan tidak ditemukan' }, { status: 404 });
     }
 
-    // Update draft → valid
+    // Update draft → valid with correct WIB date
+    const todayWIB = getTodayWIB();
     const { data: updated, error: updateErr } = await supabaseAdmin
       .from('cleaning_reports')
       .update({
         photo_url: photo_url,
         status: 'valid',
         submitted_at: new Date().toISOString(),
+        submission_date: todayWIB,
       })
       .eq('id', report_id)
       .select()

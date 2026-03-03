@@ -24,19 +24,19 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- Count only completed (non-draft) reports today
+  -- Count only completed (non-draft) reports today (WIB timezone)
   SELECT COUNT(*) INTO report_count
   FROM cleaning_reports
   WHERE user_id = NEW.user_id
-    AND submission_date = CURRENT_DATE
+    AND submission_date = (NOW() AT TIME ZONE 'Asia/Jakarta')::DATE
     AND status != 'draft';
 
   IF report_count >= 3 THEN
     RAISE EXCEPTION 'Maximum daily cleaning reports reached (3).';
   END IF;
 
-  -- Auto-set submission_date and submitted_at for completed reports
-  NEW.submission_date := CURRENT_DATE;
+  -- Auto-set submission_date (WIB) and submitted_at for completed reports
+  NEW.submission_date := (NOW() AT TIME ZONE 'Asia/Jakarta')::DATE;
   NEW.submitted_at := NOW();
 
   RETURN NEW;

@@ -133,12 +133,13 @@ export default function DashboardPage() {
         .upload(fileName, fileBefore, { cacheControl: '3600', upsert: false });
       if (uploadErr) throw uploadErr;
 
-      // Create draft report
+      // Create draft report with explicit WIB date
       const { error: insertErr } = await supabase.from('cleaning_reports').insert({
         user_id: user.id,
         photo_before_url: fileName,
         photo_url: null,
         status: 'draft',
+        submission_date: getTodayDate(),
         notes: notes.trim() || null,
         latitude: geo?.latitude || null,
         longitude: geo?.longitude || null,
