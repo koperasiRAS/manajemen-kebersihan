@@ -1,7 +1,7 @@
 {
-  "name": "Clean Office Discipline System",
-  "short_name": "CleanOffice",
-  "description": "Employee cleaning documentation and discipline monitoring",
+  "name": "Raya Abadi Saudara - Manajemen Kebersihan",
+  "short_name": "RAS Kebersihan",
+  "description": "Sistem dokumentasi kebersihan dan monitoring disiplin karyawan",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",

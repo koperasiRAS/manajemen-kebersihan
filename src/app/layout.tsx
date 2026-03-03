@@ -17,14 +17,14 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Sistem Disiplin Kebersihan Kantor',
+  title: 'Raya Abadi Saudara - Manajemen Kebersihan',
   description: 'Sistem dokumentasi kebersihan dan monitoring disiplin karyawan',
   manifest: '/manifest.json',
   themeColor: '#2563eb',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'CleanOffice',
+    title: 'RAS Kebersihan',
   },
 };
 

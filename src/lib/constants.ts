@@ -2,7 +2,7 @@
 // Application Constants
 // ============================================================
 
-export const APP_NAME = 'Clean Office Discipline System';
+export const APP_NAME = 'Raya Abadi Saudara - Manajemen Kebersihan';
 
 // Report limits
 export const MAX_DAILY_REPORTS = 3;

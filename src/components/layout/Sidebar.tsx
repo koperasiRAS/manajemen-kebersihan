@@ -52,8 +52,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </svg>
           </div>
           <div>
-            <h1 className="text-sm font-bold text-gray-900 dark:text-white leading-tight">Clean Office</h1>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Sistem Disiplin</p>
+            <h1 className="text-sm font-bold text-gray-900 dark:text-white leading-tight">Raya Abadi Saudara</h1>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Manajemen Kebersihan</p>
           </div>
         </div>
 
