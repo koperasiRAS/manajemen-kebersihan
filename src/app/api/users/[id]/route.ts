@@ -50,12 +50,11 @@ export async function DELETE(
       return NextResponse.json({ error: 'Karyawan tidak ditemukan' }, { status: 404 });
     }
 
-    // Delete related records first (cleaning_schedules, cleaning_reports, discipline_log)
+    // Delete related records first (order matters for foreign keys)
     await supabaseAdmin.from('cleaning_schedules').delete().eq('user_id', targetId);
     await supabaseAdmin.from('discipline_log').delete().eq('user_id', targetId);
-    // For cleaning_reports, keep them but unlink the user (set user_id to null is not possible if NOT NULL)
-    // So we just delete them
     await supabaseAdmin.from('cleaning_reports').delete().eq('user_id', targetId);
+    await supabaseAdmin.from('audit_log').delete().eq('user_id', targetId);
 
     // Delete from users table
     const { error: deleteError } = await supabaseAdmin.from('users').delete().eq('id', targetId);
